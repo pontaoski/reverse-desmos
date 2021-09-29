@@ -87,6 +87,7 @@ init _ =
             , currentlyDragging = Nothing
             , currentGeneratorShapeId = "a"
             , newLinePos1 = (0, 0)
+            , showCircles = True
             }
     in
     ( initialModel, Cmd.none )
@@ -99,6 +100,7 @@ type Msg
     | StopDrag
     | NewLine
     | MouseDown Int Int
+    | ToggleCircles
 
 
 dragConfig : Draggable.Config Id Msg
@@ -116,6 +118,7 @@ type alias Model =
     , currentlyDragging : Maybe Id
     , currentGeneratorShapeId : ShapeId
     , newLinePos1 : ( Int, Int )
+    , showCircles : Bool
     }
 
 
@@ -197,6 +200,9 @@ update msg model =
         MouseDown x y ->
             ( { model | newLinePos1 = (x, y) }, Cmd.none )
 
+        ToggleCircles ->
+            ( { model | showCircles = not model.showCircles}, Cmd.none )
+
 
 
 -- SUBSCRIPTIONS
@@ -245,11 +251,11 @@ renderCircle x y r a =
         []
 
 
-renderLine : ( ShapeId, Shapes.Line ) -> Html Msg
-renderLine ( id, line ) =
+renderLine : Bool -> ( ShapeId, Shapes.Line ) -> Html Msg
+renderLine showCircles ( id, line ) =
     Svg.g
         []
-        [ Svg.line
+        ([ Svg.line
             [ Attributes.x1 (String.fromInt line.pos1.x)
             , Attributes.x2 (String.fromInt line.pos2.x)
             , Attributes.y1 (String.fromInt line.pos1.y)
@@ -257,12 +263,10 @@ renderLine ( id, line ) =
             , Attributes.style "stroke: rgb(0,0,0); stroke-width: 1.5;"
             ]
             []
-        , renderCircle line.pos1.x line.pos1.y 10 (Draggable.mouseTrigger (Id id LinePos1) DragMsg)
-        , renderCircle line.pos2.x line.pos2.y 10 (Draggable.mouseTrigger (Id id LinePos2) DragMsg)
-
-        --      , Svg.text_ [ Attributes.x (String.fromInt line.pos1.x), Attributes.y (String.fromInt (line.pos1.y - 20)) ] [ Svg.text ((String.fromInt line.pos1.x) ++ ", " ++ (String.fromInt line.pos1.y)) ]
-        --      , Svg.text_ [ Attributes.x (String.fromInt line.pos2.x), Attributes.y (String.fromInt (line.pos2.y - 20)) ] [ Svg.text ((String.fromInt line.pos2.x) ++ ", " ++ (String.fromInt line.pos2.y)) ]
-        ]
+        ] ++ (if showCircles then
+            [ renderCircle line.pos1.x line.pos1.y 10 (Draggable.mouseTrigger (Id id LinePos1) DragMsg)
+            , renderCircle line.pos2.x line.pos2.y 10 (Draggable.mouseTrigger (Id id LinePos2) DragMsg)
+            ] else []))
 
 
 getLine : ( ShapeId, Shapes.Shape ) -> Maybe ( ShapeId, Shapes.Line )
@@ -285,7 +289,7 @@ renderGraph model =
         , Draggable.mouseTrigger (Id "" Canvas) DragMsg
         , Mouse.onMove (\ev -> MouseDown (round (Tuple.first ev.offsetPos)) (round (Tuple.second ev.offsetPos)))
         ]
-        (lines model |> List.map renderLine)
+        (lines model |> List.map (renderLine model.showCircles))
 
 
 graphContainer : Model -> Element Msg
@@ -306,8 +310,8 @@ separator =
     rgb255 206 210 213
 
 
-button : Color
-button =
+buttonColor : Color
+buttonColor =
     rgb255 247 247 247
 
 
@@ -315,6 +319,21 @@ focus : Color
 focus =
     rgb255 61 174 233
 
+button { onPress, textLabel } =
+    Input.button
+        [ Background.color buttonColor
+        , Border.solid
+        , Border.color separator
+        , Border.width 1
+        , Border.rounded 3
+        , padding 5
+        , mouseDown
+            [ Background.color focus
+            ]
+        ]
+        { onPress = onPress
+        , label = text textLabel
+        }
 
 content : Model -> Element Msg
 content model =
@@ -328,21 +347,9 @@ content model =
         [ column
             [ centerX ]
             [ graphContainer model
-            , row [ centerX, padding 16 ]
-                [ Input.button
-                    [ Background.color button
-                    , Border.solid
-                    , Border.color separator
-                    , Border.width 1
-                    , Border.rounded 3
-                    , padding 5
-                    , mouseDown
-                        [ Background.color focus
-                        ]
-                    ]
-                    { onPress = Just NewLine
-                    , label = text "New Line"
-                    }
+            , row [ centerX, padding 16, spacing 6 ]
+                [ button { onPress = Just NewLine, textLabel = "New Line" }
+                , button { onPress = Just ToggleCircles, textLabel = if model.showCircles then "Hide Circles" else "Show Circles" }
                 ]
             ]
         ]
