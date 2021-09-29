@@ -59,6 +59,7 @@ main =
 type DragTarget
     = LinePos1
     | LinePos2
+    | Canvas
 
 
 type alias ShapeId =
@@ -136,6 +137,9 @@ updateShape x y target shape =
                 Shapes.LineShape { pos1, pos2 } ->
                     Shapes.LineShape (Shapes.Line pos1 (Shapes.posDelta pos2 x y))
 
+        Canvas ->
+            shape
+
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -152,7 +156,22 @@ update msg model =
                     ( model, Cmd.none )
 
         StartDrag id ->
-            ( { model | currentlyDragging = Just id }, Cmd.none )
+            case id.target of
+                Canvas ->
+                    let
+                        newID =
+                            model.currentGeneratorShapeId ++ "a"
+                    in
+                    ( { model
+                        | currentGeneratorShapeId = newID
+                        , shapes = Dict.insert newID plainLine model.shapes
+                        , currentlyDragging = Just (Id newID LinePos2)
+                      }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( { model | currentlyDragging = Just id }, Cmd.none )
 
         StopDrag ->
             ( { model | currentlyDragging = Nothing }, Cmd.none )
@@ -250,6 +269,7 @@ renderGraph model =
     Svg.svg
         [ Attributes.width (String.fromInt Shapes.canvasWidth)
         , Attributes.height (String.fromInt Shapes.canvasHeight)
+        , Draggable.mouseTrigger (Id "" Canvas) DragMsg
         ]
         (lines model |> List.map renderLine)
 
