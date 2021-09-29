@@ -6,6 +6,10 @@ type alias Pos =
     , y : Int
     }
 
+posDelta : Pos -> Int -> Int -> Pos
+posDelta pos x y =
+    { pos | x = pos.x + x, y = pos.y + y }
+
 
 type alias Line =
     { pos1 : Pos
