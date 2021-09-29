@@ -9,6 +9,7 @@ import Element.Background as Background
 import Element.Border as Border
 import Element.Input as Input
 import Html exposing (Html)
+import Html.Events.Extra.Mouse as Mouse
 import Shapes
 import Svg
 import Svg.Attributes as Attributes
@@ -85,6 +86,7 @@ init _ =
             , drag = Draggable.init
             , currentlyDragging = Nothing
             , currentGeneratorShapeId = "a"
+            , newLinePos1 = (0, 0)
             }
     in
     ( initialModel, Cmd.none )
@@ -96,6 +98,7 @@ type Msg
     | StartDrag Id
     | StopDrag
     | NewLine
+    | MouseDown Int Int
 
 
 dragConfig : Draggable.Config Id Msg
@@ -112,6 +115,7 @@ type alias Model =
     , drag : Draggable.State Id
     , currentlyDragging : Maybe Id
     , currentGeneratorShapeId : ShapeId
+    , newLinePos1 : ( Int, Int )
     }
 
 
@@ -161,10 +165,16 @@ update msg model =
                     let
                         newID =
                             model.currentGeneratorShapeId ++ "a"
+
+                        x1 =
+                            Tuple.first model.newLinePos1
+
+                        y1 =
+                            Tuple.second model.newLinePos1
                     in
                     ( { model
                         | currentGeneratorShapeId = newID
-                        , shapes = Dict.insert newID plainLine model.shapes
+                        , shapes = Dict.insert newID (Shapes.toLineShape x1 y1 x1 y1) model.shapes
                         , currentlyDragging = Just (Id newID LinePos2)
                       }
                     , Cmd.none
@@ -183,6 +193,9 @@ update msg model =
               }
             , Cmd.none
             )
+
+        MouseDown x y ->
+            ( { model | newLinePos1 = (x, y) }, Cmd.none )
 
 
 
@@ -270,6 +283,7 @@ renderGraph model =
         [ Attributes.width (String.fromInt Shapes.canvasWidth)
         , Attributes.height (String.fromInt Shapes.canvasHeight)
         , Draggable.mouseTrigger (Id "" Canvas) DragMsg
+        , Mouse.onMove (\ev -> MouseDown (round (Tuple.first ev.offsetPos)) (round (Tuple.second ev.offsetPos)))
         ]
         (lines model |> List.map renderLine)
 
@@ -334,7 +348,7 @@ content model =
         ]
 
 
-toolbar : a -> Element Msg
+toolbar : Model -> Element Msg
 toolbar _ =
     column
         [ height (px 48)
