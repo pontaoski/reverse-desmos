@@ -82,7 +82,7 @@ init : () -> ( Model, Cmd Msg )
 init _ =
     let
         initialModel =
-            { shapes = Dict.fromList [ ( "hi", plainLine ) ]
+            { shapes = Dict.fromList []
             , drag = Draggable.init
             , currentlyDragging = Nothing
             , currentGeneratorShapeId = "a"
