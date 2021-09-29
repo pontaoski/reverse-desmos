@@ -7,13 +7,10 @@ import Draggable.Events
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
-import Element.Font as Font
 import Html exposing (Html)
 import Shapes
 import Svg
 import Svg.Attributes as Attributes
-import Task
-import Time
 
 
 
