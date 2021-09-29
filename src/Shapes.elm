@@ -6,6 +6,7 @@ type alias Pos =
     , y : Int
     }
 
+
 posDelta : Pos -> Int -> Int -> Pos
 posDelta pos x y =
     { pos | x = pos.x + x, y = pos.y + y }
@@ -36,16 +37,41 @@ getYOffset m x y =
     -((m * x) + y)
 
 
+lbrack : String
+lbrack =
+    "\\left\\{"
+
+
+rbrack : String
+rbrack =
+    "\\right\\}"
+
+
+le : String
+le =
+    " \\le "
+
+
 toDesmosRange : Int -> Int -> String
 toDesmosRange x1 x2 =
     if x1 < x2 then
-        "{" ++ String.fromInt x1 ++ "<=" ++ String.fromInt x2 ++ "}"
+        lbrack ++ String.fromInt x1 ++ le ++ "x" ++ le ++ String.fromInt x2 ++ rbrack
 
     else if x2 < x1 then
-        "{" ++ String.fromInt x2 ++ "<=" ++ String.fromInt x1 ++ "}"
+        lbrack ++ String.fromInt x2 ++ le ++ "x" ++ le ++ String.fromInt x1 ++ rbrack
 
     else
         ""
+
+
+canvasWidth : number
+canvasWidth =
+    600
+
+
+canvasHeight : number
+canvasHeight =
+    600
 
 
 toString : Shape -> String
@@ -60,10 +86,10 @@ toString shape =
                     line.pos2.x
 
                 y1 =
-                    line.pos1.y
+                    line.pos1.y - canvasHeight
 
                 y2 =
-                    line.pos2.y
+                    line.pos2.y - canvasHeight
 
                 dx =
                     x2 - x1
@@ -84,7 +110,7 @@ toString shape =
                 ( _, _ ) ->
                     let
                         slope =
-                            toFloat dx / toFloat dy
+                            toFloat -dy / toFloat dx
 
                         yOffset =
                             getYOffset slope (toFloat x1) (toFloat y1)

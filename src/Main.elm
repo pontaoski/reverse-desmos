@@ -7,6 +7,7 @@ import Draggable.Events
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
+import Element.Input as Input
 import Html exposing (Html)
 import Shapes
 import Svg
@@ -31,9 +32,11 @@ headerColor : Color
 headerColor =
     rgb255 222 224 226
 
+
 shadowColor : Color
 shadowColor =
     rgba255 36 36 54 0.2
+
 
 
 -- MAIN
@@ -68,13 +71,19 @@ type alias Id =
     }
 
 
+plainLine : Shapes.Shape
+plainLine =
+    Shapes.toLineShape 0 0 200 200
+
+
 init : () -> ( Model, Cmd Msg )
 init _ =
     let
         initialModel =
-            { shapes = Dict.fromList [ ( "hi", Shapes.toLineShape 0 0 200 200 ) ]
+            { shapes = Dict.fromList [ ( "hi", plainLine ) ]
             , drag = Draggable.init
             , currentlyDragging = Nothing
+            , currentGeneratorShapeId = "a"
             }
     in
     ( initialModel, Cmd.none )
@@ -85,6 +94,7 @@ type Msg
     | OnDragBy Draggable.Delta
     | StartDrag Id
     | StopDrag
+    | NewLine
 
 
 dragConfig : Draggable.Config Id Msg
@@ -100,6 +110,7 @@ type alias Model =
     { shapes : Dict ShapeId Shapes.Shape
     , drag : Draggable.State Id
     , currentlyDragging : Maybe Id
+    , currentGeneratorShapeId : ShapeId
     }
 
 
@@ -146,6 +157,14 @@ update msg model =
         StopDrag ->
             ( { model | currentlyDragging = Nothing }, Cmd.none )
 
+        NewLine ->
+            ( { model
+                | currentGeneratorShapeId = model.currentGeneratorShapeId ++ "a"
+                , shapes = Dict.insert model.currentGeneratorShapeId plainLine model.shapes
+              }
+            , Cmd.none
+            )
+
 
 
 -- SUBSCRIPTIONS
@@ -179,7 +198,7 @@ sidebar model =
         , width (px 200)
         , height fill
         ]
-        (List.map Shapes.toString (Dict.values model.shapes) |> List.map label |> List.map (\elm -> paragraph [] [elm]))
+        (List.map Shapes.toString (Dict.values model.shapes) |> List.map label |> List.map (\elm -> paragraph [] [ elm ]))
 
 
 renderCircle : Int -> Int -> Int -> Html.Attribute Msg -> Html Msg
@@ -208,6 +227,9 @@ renderLine ( id, line ) =
             []
         , renderCircle line.pos1.x line.pos1.y 10 (Draggable.mouseTrigger (Id id LinePos1) DragMsg)
         , renderCircle line.pos2.x line.pos2.y 10 (Draggable.mouseTrigger (Id id LinePos2) DragMsg)
+
+        --      , Svg.text_ [ Attributes.x (String.fromInt line.pos1.x), Attributes.y (String.fromInt (line.pos1.y - 20)) ] [ Svg.text ((String.fromInt line.pos1.x) ++ ", " ++ (String.fromInt line.pos1.y)) ]
+        --      , Svg.text_ [ Attributes.x (String.fromInt line.pos2.x), Attributes.y (String.fromInt (line.pos2.y - 20)) ] [ Svg.text ((String.fromInt line.pos2.x) ++ ", " ++ (String.fromInt line.pos2.y)) ]
         ]
 
 
@@ -226,18 +248,17 @@ lines { shapes } =
 renderGraph : Model -> Html Msg
 renderGraph model =
     Svg.svg
-        [ Attributes.width "500"
-        , Attributes.height "500"
+        [ Attributes.width (String.fromInt Shapes.canvasWidth)
+        , Attributes.height (String.fromInt Shapes.canvasHeight)
         ]
         (lines model |> List.map renderLine)
+
 
 graphContainer : Model -> Element Msg
 graphContainer model =
     el
-        [ centerX
-        , centerY
-        , Border.shadow
-            { offset = (0.0, 4.0)
+        [ Border.shadow
+            { offset = ( 0.0, 4.0 )
             , size = 5.0
             , blur = 5.0
             , color = shadowColor
@@ -245,14 +266,52 @@ graphContainer model =
         ]
         (html (renderGraph model))
 
+
+separator : Color
+separator =
+    rgb255 206 210 213
+
+
+button : Color
+button =
+    rgb255 247 247 247
+
+
+focus : Color
+focus =
+    rgb255 61 174 233
+
+
 content : Model -> Element Msg
 content model =
     column
         [ width fill
         , height fill
+        , padding 16
+        , scrollbarY
         , Background.color contentColor
         ]
-        [ graphContainer model ]
+        [ column
+            [ centerX ]
+            [ graphContainer model
+            , row [ centerX, padding 16 ]
+                [ Input.button
+                    [ Background.color button
+                    , Border.solid
+                    , Border.color separator
+                    , Border.width 1
+                    , Border.rounded 3
+                    , padding 5
+                    , mouseDown
+                        [ Background.color focus
+                        ]
+                    ]
+                    { onPress = Just NewLine
+                    , label = text "New Line"
+                    }
+                ]
+            ]
+        ]
 
 
 toolbar : a -> Element Msg
