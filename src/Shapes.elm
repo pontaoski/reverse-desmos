@@ -1,5 +1,7 @@
 module Shapes exposing (..)
 
+import Json.Decode as D
+import Json.Encode as E
 
 type alias Pos =
     { x : Int
@@ -116,3 +118,49 @@ toString shape =
                             getYOffset slope (toFloat x1) (toFloat y1)
                     in
                     "y = " ++ String.fromFloat slope ++ "x + " ++ String.fromFloat yOffset ++ toDesmosRange "x" x1 x2
+
+encodePos : Pos -> E.Value
+encodePos pos =
+    E.object
+        [ ("x", E.int pos.x)
+        , ("y", E.int pos.y)
+        ]
+
+posDecoder : D.Decoder Pos
+posDecoder =
+    D.map2 Pos
+        (D.field "x" D.int)
+        (D.field "y" D.int)
+
+encodeShape : Shape -> E.Value
+encodeShape shape =
+    case shape of
+        LineShape line ->
+            E.object
+                [ ("kind", E.string "line")
+                , ("pos1", encodePos line.pos1)
+                , ("pos2", encodePos line.pos2)
+                ]
+
+tagDecoder : String -> D.Decoder a -> D.Decoder a
+tagDecoder tag decoder =
+    D.field "kind" D.string
+    |> D.andThen
+        (\x ->
+            if x == tag then
+                decoder
+            else
+                D.fail "Wrong tag")
+
+lineDecoder : D.Decoder Line
+lineDecoder =
+    D.map2 Line
+        (D.field "pos1" posDecoder)
+        (D.field "pos2" posDecoder)
+    |> tagDecoder "line"
+
+shapeDecoder : D.Decoder Shape
+shapeDecoder =
+    D.oneOf
+        [ lineDecoder |> D.map LineShape
+        ]

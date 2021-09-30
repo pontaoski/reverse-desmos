@@ -13,7 +13,12 @@ import Html.Events.Extra.Mouse as Mouse
 import Shapes
 import Svg
 import Svg.Attributes as Attributes
-
+import File exposing (File)
+import File.Select as Select
+import File.Download as Download
+import Task
+import Json.Decode as D
+import Json.Encode as E
 
 
 -- COLORS
@@ -101,6 +106,10 @@ type Msg
     | NewLine
     | MouseDown Int Int
     | ToggleCircles
+    | OpenRequested
+    | DownloadRequested
+    | FileSelected File
+    | FileLoaded String
 
 
 dragConfig : Draggable.Config Id Msg
@@ -147,6 +156,13 @@ updateShape x y target shape =
         Canvas ->
             shape
 
+shapesDecoder : D.Decoder (Dict ShapeId Shapes.Shape)
+shapesDecoder =
+    D.dict Shapes.shapeDecoder
+
+encodeShapes : (Dict ShapeId Shapes.Shape) -> E.Value
+encodeShapes shapes =
+    E.dict identity Shapes.encodeShape <| shapes
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -202,6 +218,24 @@ update msg model =
 
         ToggleCircles ->
             ( { model | showCircles = not model.showCircles}, Cmd.none )
+
+        OpenRequested ->
+            ( model, Select.file ["text/json"] FileSelected )
+
+        FileSelected file ->
+            ( model, Task.perform FileLoaded (File.toString file) )
+
+        FileLoaded shapes ->
+            case D.decodeString shapesDecoder shapes of
+                Ok val ->
+                    ( { model | shapes = val }, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        DownloadRequested ->
+            ( model, Download.string "shapes.json" "application/json" (E.encode 0 <| encodeShapes model.shapes))
+
 
 
 
@@ -349,6 +383,8 @@ content model =
             [ graphContainer model
             , row [ centerX, padding 16, spacing 6 ]
                 [ button { onPress = Just NewLine, textLabel = "New Line" }
+                , button { onPress = Just DownloadRequested, textLabel = "Download" }
+                , button { onPress = Just OpenRequested, textLabel = "Open" }
                 , button { onPress = Just ToggleCircles, textLabel = if model.showCircles then "Hide Circles" else "Show Circles" }
                 ]
             ]
