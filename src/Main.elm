@@ -66,6 +66,8 @@ type DragTarget
     = LinePos1
     | LinePos2
     | Canvas
+    | CircleCentre
+    | CircleTop
 
 
 type alias ShapeId =
@@ -82,6 +84,9 @@ plainLine : Shapes.Shape
 plainLine =
     Shapes.toLineShape 0 0 200 200
 
+plainCircle : Shapes.Shape
+plainCircle =
+    Shapes.toCircleShape 200 200 50
 
 init : () -> ( Model, Cmd Msg )
 init _ =
@@ -104,6 +109,7 @@ type Msg
     | StartDrag Id
     | StopDrag
     | NewLine
+    | NewCircle
     | MouseDown Int Int
     | ToggleCircles
     | OpenRequested
@@ -148,13 +154,35 @@ updateShape x y target shape =
                 Shapes.LineShape { pos1, pos2 } ->
                     Shapes.LineShape (Shapes.Line (Shapes.posDelta pos1 x y) pos2)
 
+                _ ->
+                    shape
+
         LinePos2 ->
             case shape of
                 Shapes.LineShape { pos1, pos2 } ->
                     Shapes.LineShape (Shapes.Line pos1 (Shapes.posDelta pos2 x y))
 
+                _ ->
+                    shape
+
         Canvas ->
             shape
+
+        CircleCentre ->
+            case shape of
+                Shapes.CircleShape { centre, radius } ->
+                    Shapes.CircleShape (Shapes.Circle (Shapes.posDelta centre x y) radius)
+
+                _ ->
+                    shape
+
+        CircleTop ->
+            case shape of
+                Shapes.CircleShape { centre, radius } ->
+                    Shapes.CircleShape (Shapes.Circle centre (max 1 (radius-y)))
+
+                _ ->
+                    shape
 
 shapesDecoder : D.Decoder (Dict ShapeId Shapes.Shape)
 shapesDecoder =
@@ -209,6 +237,14 @@ update msg model =
             ( { model
                 | currentGeneratorShapeId = model.currentGeneratorShapeId ++ "a"
                 , shapes = Dict.insert model.currentGeneratorShapeId plainLine model.shapes
+              }
+            , Cmd.none
+            )
+
+        NewCircle ->
+            ( { model
+                | currentGeneratorShapeId = model.currentGeneratorShapeId ++ "a"
+                , shapes = Dict.insert model.currentGeneratorShapeId plainCircle model.shapes
               }
             , Cmd.none
             )
@@ -273,8 +309,8 @@ sidebar model =
         (List.map Shapes.toString (Dict.values model.shapes) |> List.map label |> List.map (\elm -> paragraph [] [ elm ]))
 
 
-renderCircle : Int -> Int -> Int -> Html.Attribute Msg -> Html Msg
-renderCircle x y r a =
+renderCircleHandle : Int -> Int -> Int -> Html.Attribute Msg -> Html Msg
+renderCircleHandle x y r a =
     Svg.circle
         [ Attributes.cx (String.fromInt x)
         , Attributes.cy (String.fromInt y)
@@ -298,22 +334,42 @@ renderLine showCircles ( id, line ) =
             ]
             []
         ] ++ (if showCircles then
-            [ renderCircle line.pos1.x line.pos1.y 10 (Draggable.mouseTrigger (Id id LinePos1) DragMsg)
-            , renderCircle line.pos2.x line.pos2.y 10 (Draggable.mouseTrigger (Id id LinePos2) DragMsg)
+            [ renderCircleHandle line.pos1.x line.pos1.y 10 (Draggable.mouseTrigger (Id id LinePos1) DragMsg)
+            , renderCircleHandle line.pos2.x line.pos2.y 10 (Draggable.mouseTrigger (Id id LinePos2) DragMsg)
             ] else []))
 
+renderCircle : Bool -> ( ShapeId, Shapes.Circle ) -> Html Msg
+renderCircle showCircles ( id, circle ) =
+    Svg.g
+        []
+        ([ Svg.circle
+            [ Attributes.cx (String.fromInt circle.centre.x)
+            , Attributes.cy (String.fromInt circle.centre.y)
+            , Attributes.r (String.fromInt circle.radius)
+            , Attributes.style "stroke: rgb(0, 0, 0); stroke-width: 1.5; fill: transparent;"
+            ]
+            []
+        ] ++ (if showCircles then
+            [ renderCircleHandle circle.centre.x circle.centre.y 10 (Draggable.mouseTrigger (Id id CircleCentre) DragMsg)
+            , renderCircleHandle circle.centre.x (circle.centre.y - circle.radius) 10 (Draggable.mouseTrigger (Id id CircleTop) DragMsg)
+            ] else []))
 
-getLine : ( ShapeId, Shapes.Shape ) -> Maybe ( ShapeId, Shapes.Line )
-getLine ( id, shape ) =
+renderShape : Bool -> ( ShapeId, Shapes.Shape ) -> Html Msg
+renderShape showCircles (id, shape) =
     case shape of
         Shapes.LineShape line ->
-            Just ( id, line )
+            renderLine showCircles (id, line)
 
+        Shapes.CircleShape circle ->
+            renderCircle showCircles (id, circle)
 
-lines : Model -> List ( ShapeId, Shapes.Line )
-lines { shapes } =
-    List.filterMap getLine (Dict.toList shapes)
-
+renderShapes : Model -> List (Html Msg)
+renderShapes { shapes, showCircles } =
+    let
+        shapesList =
+            Dict.toList shapes
+    in
+        shapesList |> List.map (renderShape showCircles)
 
 renderGraph : Model -> Html Msg
 renderGraph model =
@@ -323,7 +379,7 @@ renderGraph model =
         , Draggable.mouseTrigger (Id "" Canvas) DragMsg
         , Mouse.onMove (\ev -> MouseDown (round (Tuple.first ev.offsetPos)) (round (Tuple.second ev.offsetPos)))
         ]
-        (lines model |> List.map (renderLine model.showCircles))
+        (renderShapes model)
 
 
 graphContainer : Model -> Element Msg
@@ -383,6 +439,7 @@ content model =
             [ graphContainer model
             , row [ centerX, padding 16, spacing 6 ]
                 [ button { onPress = Just NewLine, textLabel = "New Line" }
+                , button { onPress = Just NewCircle, textLabel = "New Circle"}
                 , button { onPress = Just DownloadRequested, textLabel = "Download" }
                 , button { onPress = Just OpenRequested, textLabel = "Open" }
                 , button { onPress = Just ToggleCircles, textLabel = if model.showCircles then "Hide Circles" else "Show Circles" }

@@ -19,9 +19,14 @@ type alias Line =
     , pos2 : Pos
     }
 
+type alias Circle =
+    { centre : Pos
+    , radius : Int
+    }
 
 type Shape
     = LineShape Line
+    | CircleShape Circle
 
 
 toLine : Int -> Int -> Int -> Int -> Line
@@ -33,6 +38,13 @@ toLineShape : Int -> Int -> Int -> Int -> Shape
 toLineShape x1 y1 x2 y2 =
     LineShape (toLine x1 y1 x2 y2)
 
+toCircle : Int -> Int -> Int -> Circle
+toCircle x y r =
+    Circle (Pos x y) r
+
+toCircleShape : Int -> Int -> Int -> Shape
+toCircleShape x y r =
+    CircleShape (toCircle x y r)
 
 getYOffset : number -> number -> number -> number
 getYOffset m x y =
@@ -79,6 +91,28 @@ canvasHeight =
 toString : Shape -> String
 toString shape =
     case shape of
+        CircleShape circle ->
+            let
+                h =
+                    circle.centre.x
+
+                k =
+                    -circle.centre.y + canvasHeight
+
+                r =
+                    circle.radius
+
+                hS =
+                    String.fromInt h
+
+                kS =
+                    String.fromInt k
+
+                rS =
+                    String.fromInt r
+            in
+                "\\left(x-" ++ hS ++ "\\right)^{2}+\\left(y-" ++ kS ++ "\\right)^{2}=" ++ rS ++ "^{2}"
+
         LineShape line ->
             let
                 x1 =
@@ -132,15 +166,30 @@ posDecoder =
         (D.field "x" D.int)
         (D.field "y" D.int)
 
+encodeLine : Line -> E.Value
+encodeLine line =
+    E.object
+        [ ("kind", E.string "line")
+        , ("pos1", encodePos line.pos1)
+        , ("pos2", encodePos line.pos2)
+        ]
+
+encodeCircle : Circle -> E.Value
+encodeCircle circle =
+    E.object
+        [ ("kind", E.string "circle")
+        , ("centre", encodePos circle.centre)
+        , ("radius", E.int circle.radius)
+        ]
+
 encodeShape : Shape -> E.Value
 encodeShape shape =
     case shape of
         LineShape line ->
-            E.object
-                [ ("kind", E.string "line")
-                , ("pos1", encodePos line.pos1)
-                , ("pos2", encodePos line.pos2)
-                ]
+            encodeLine line
+
+        CircleShape circle ->
+            encodeCircle circle
 
 tagDecoder : String -> D.Decoder a -> D.Decoder a
 tagDecoder tag decoder =
@@ -159,8 +208,16 @@ lineDecoder =
         (D.field "pos2" posDecoder)
     |> tagDecoder "line"
 
+circleDecoder : D.Decoder Circle
+circleDecoder =
+    D.map2 Circle
+        (D.field "centre" posDecoder)
+        (D.field "radius" D.int)
+    |> tagDecoder "circle"
+
 shapeDecoder : D.Decoder Shape
 shapeDecoder =
     D.oneOf
         [ lineDecoder |> D.map LineShape
+        , circleDecoder |> D.map CircleShape
         ]
