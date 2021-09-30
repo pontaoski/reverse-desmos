@@ -52,13 +52,13 @@ le =
     " \\le "
 
 
-toDesmosRange : Int -> Int -> String
-toDesmosRange x1 x2 =
+toDesmosRange : String -> Int -> Int -> String
+toDesmosRange var x1 x2 =
     if x1 < x2 then
-        lbrack ++ String.fromInt x1 ++ le ++ "x" ++ le ++ String.fromInt x2 ++ rbrack
+        lbrack ++ String.fromInt x1 ++ le ++ var ++ le ++ String.fromInt x2 ++ rbrack
 
     else if x2 < x1 then
-        lbrack ++ String.fromInt x2 ++ le ++ "x" ++ le ++ String.fromInt x1 ++ rbrack
+        lbrack ++ String.fromInt x2 ++ le ++ var ++ le ++ String.fromInt x1 ++ rbrack
 
     else
         ""
@@ -102,10 +102,10 @@ toString shape =
                     "not a line"
 
                 ( 0, _ ) ->
-                    "y = " ++ String.fromInt x1
+                    "x = " ++ String.fromInt x1 ++ toDesmosRange "y" (y1 + canvasHeight) (y2 + canvasHeight)
 
                 ( _, 0 ) ->
-                    "x = " ++ String.fromInt y1
+                    "y = " ++ String.fromInt y1 ++ toDesmosRange "x" x1 x2
 
                 ( _, _ ) ->
                     let
@@ -115,4 +115,4 @@ toString shape =
                         yOffset =
                             getYOffset slope (toFloat x1) (toFloat y1)
                     in
-                    "y = " ++ String.fromFloat slope ++ "x + " ++ String.fromFloat yOffset ++ toDesmosRange x1 x2
+                    "y = " ++ String.fromFloat slope ++ "x + " ++ String.fromFloat yOffset ++ toDesmosRange "x" x1 x2
